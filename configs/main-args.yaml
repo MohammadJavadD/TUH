@@ -1,0 +1,5 @@
+args:
+  TUH_PP_PATH: './TUH/edf/preprocessed'
+  lr: 0.0001
+  weight_decay: 0.0
+  epochs: 50 
