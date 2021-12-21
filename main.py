@@ -6,6 +6,7 @@ import numpy as np
 import mne
 mne.set_log_level('ERROR')  # avoid messages everytime a window is extracted
 
+from sklearn.metrics import accuracy_score
 #
 from braindecode.datasets import MOABBDataset
 from braindecode.preprocessing import preprocess, Preprocessor
@@ -34,7 +35,7 @@ def main(cfg : DictConfig) -> None:
     dataset_loaded = load_concat_dataset(
         path=cfg.args.TUH_PP_PATH,
         preload=True,
-        ids_to_load= range(100), # [10, 30],
+        ids_to_load= range(100),
         # target_name=('age', 'gender'),
     )
 
@@ -98,21 +99,21 @@ def main(cfg : DictConfig) -> None:
 
     ## training 
     model = Deep4Net(
-             in_chans = batch_X.shape[1],
+            in_chans = batch_X.shape[1],
             n_classes = 2,
             input_window_samples=batch_X.shape[2],
             final_conv_length='auto',
-            n_filters_time=32,
-            n_filters_spat=32,
-            filter_time_length=10,
-            pool_time_length=3,
-            pool_time_stride=3,
-            n_filters_2=64,
-            filter_length_2=10,
-            n_filters_3=128,
-            filter_length_3=10,
-            n_filters_4=256,
-            filter_length_4=10
+            # n_filters_time=32,
+            # n_filters_spat=32,
+            # filter_time_length=10,
+            # pool_time_length=3,
+            # pool_time_stride=3,
+            # n_filters_2=64,
+            # filter_length_2=10,
+            # n_filters_3=128,
+            # filter_length_3=10,
+            # n_filters_4=256,
+            # filter_length_4=10
         )
     optimizer = optim.Adam(model.parameters(), lr=cfg.args.lr, weight_decay=cfg.args.weight_decay)
 
@@ -128,10 +129,10 @@ def main(cfg : DictConfig) -> None:
             loss.backward()
             optimizer.step()
         
-        print ('epoch:',ii, 'loss:', np.array(losses).mean() )
-    
+        print ('epoch:',ii, 'loss:', np.array(losses).mean(), '| train accuracy:', validatin(dl_train, model), '| val accuracy:', validatin(dl_eval, model)  )
+
+def validatin(dl_eval, model):
     # validatin
-    from sklearn.metrics import accuracy_score
     y_pred = []
     y_true = [] 
     for batch_X, batch_y, batch_ind in dl_eval:
@@ -139,7 +140,8 @@ def main(cfg : DictConfig) -> None:
         y_pred.extend(torch.argmax(model(batch_X),dim=1).detach().numpy())
         y_true.extend(batch_y[1].numpy())
     # print(y_true,'\n', y_pred)
-    print('accuracy_score:', accuracy_score(np.array(y_pred), np.array(y_true)))
+    # print('accuracy_score:', accuracy_score(np.array(y_pred), np.array(y_true)))
+    return accuracy_score(np.array(y_pred), np.array(y_true))
 
 
 if __name__ == '__main__':

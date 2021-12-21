@@ -14,9 +14,6 @@ import os
 import mne
 from torch.utils.data import DataLoader
 
-from braindecode.datasets import TUH
-from braindecode.preprocessing import create_fixed_length_windows
-
 mne.set_log_level('ERROR')  # avoid messages everytime a window is extracted
 
 import tempfile
@@ -24,18 +21,16 @@ import tempfile
 import numpy as np
 import matplotlib.pyplot as plt
 
-from braindecode.datasets import TUH
 from braindecode.preprocessing import (
-    preprocess, Preprocessor, create_fixed_length_windows, scale as multiply)
+    preprocess, Preprocessor, exponential_moving_standardize, create_fixed_length_windows,zscore, scale as multiply)
 
 
-plt.style.use('seaborn')
 mne.set_log_level('ERROR')  # avoid messages everytime a window is extracted
 ###############################################################################
 # If you want to try this code with the actual data, please delete the next
 # section. We are required to mock some dataset functionality, since the data
 # is not available at creation time of this example.
-from braindecode.datasets.tuh import TUHAbnormal #_TUHMock as TUH  # noqa F811
+from braindecode.datasets.tuh import TUH, TUHAbnormal #_TUHMock as TUH  # noqa F811
 
 
 ###############################################################################
@@ -53,8 +48,8 @@ def main(cfg : DictConfig) -> None:
     TUH_PATH = cfg.args.TUH_PATH
     tuh = TUH(
         path=TUH_PATH,
-        recording_ids=None, # [1,2,3,4,5],
-        target_name=('gender'), #('age', 'gender'),  # use both age and gender as decoding target
+        recording_ids=None, #range(10), #  [1,2,3,4,5],
+        target_name=('age', 'gender'),  # use both age and gender as decoding target
         preload=False,
         add_physician_reports=False,
     )
@@ -183,17 +178,22 @@ def main(cfg : DictConfig) -> None:
     tmin = 1 * 60
     tmax = 6 * 60
     sfreq = 100
-
+    # Parameters for exponential moving standardization
+    factor_new = 1e-3
+    init_block_size = 1000
     preprocessors = [
         Preprocessor(custom_crop, tmin=tmin, tmax=tmax, include_tmax=False,
                     apply_on_array=False),
-        Preprocessor('set_eeg_reference', ref_channels='average', ch_type='eeg'),
+        # Preprocessor('set_eeg_reference', ref_channels='average', ch_type='eeg'),
         Preprocessor(custom_rename_channels, mapping=ch_mapping,
                     apply_on_array=False),
         Preprocessor('pick_channels', ch_names=short_ch_names, ordered=True),
         Preprocessor(multiply, factor=1e6, apply_on_array=True),
         Preprocessor(np.clip, a_min=-800, a_max=800, apply_on_array=True),
         Preprocessor('resample', sfreq=sfreq),
+        Preprocessor(zscore),
+        #  Preprocessor(exponential_moving_standardize,  # Exponential moving standardization
+        #          factor_new=factor_new, init_block_size=init_block_size)
     ]
 
 
@@ -211,7 +211,7 @@ def main(cfg : DictConfig) -> None:
     #    only have two cores. This number should be modified based on the machine
     #    that is available for preprocessing.
     N_JOBS = 1
-    OUT_PATH = TUH_PATH + "/preprocessed2/" #tempfile.mkdtemp()  # please insert actual output directory here
+    OUT_PATH = TUH_PATH + "/preprocessed4/" #tempfile.mkdtemp()  # please insert actual output directory here
     from pathlib import Path
     Path(OUT_PATH).mkdir(parents=True, exist_ok=True)
     print(OUT_PATH)
@@ -223,18 +223,18 @@ def main(cfg : DictConfig) -> None:
         save_dir=OUT_PATH
     )
 
-    #Save dataset
-    tuh.save(
-        path=OUT_PATH,
-        overwrite=True,
-    )
+    # #Save dataset
+    # tuh.save(
+    #     path=OUT_PATH,
+    #     overwrite=True,
+    # )
 
-    dataset_loaded = load_concat_dataset(
-    path=OUT_PATH,
-    preload=True,
-    ids_to_load=[1, 3],
-    target_name=None,
-    )
+    # dataset_loaded = load_concat_dataset(
+    # path=OUT_PATH,
+    # preload=True,
+    # ids_to_load=[1, 3],
+    # target_name=None,
+    # )
 
 
     # we will create compute windows. We specify a
@@ -258,7 +258,7 @@ def main(cfg : DictConfig) -> None:
     ###############################################################################
     # Iterating through the dataset gives x as ndarray(n_channels x 1000), y as
     # [age, gender], and ind. Let's look at the last example again.
-    x, y, ind = tuh_windows[-1]
+    x, y, ind = tuh_windows[-2]
     print('x:', x)
     print('y:', y)
     print('ind:', ind)
