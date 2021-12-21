@@ -1,0 +1,8 @@
+Braindecode==0.6
+hydra-core==1.1.1
+matplotlib==3.4.2+computecanada
+mne==0.23.0
+numpy==1.21.0+computecanada
+omegaconf==2.1.1
+scikit_learn==1.0.1
+torch==1.9.0+computecanada
