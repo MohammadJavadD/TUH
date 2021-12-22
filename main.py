@@ -6,7 +6,7 @@ import numpy as np
 import mne
 mne.set_log_level('ERROR')  # avoid messages everytime a window is extracted
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 #
 from braindecode.datasets import MOABBDataset
 from braindecode.preprocessing import preprocess, Preprocessor
@@ -35,10 +35,11 @@ def main(cfg : DictConfig) -> None:
     dataset_loaded = load_concat_dataset(
         path=cfg.args.TUH_PP_PATH,
         preload=True,
-        ids_to_load= range(100),
-        # target_name=('age', 'gender'),
+        ids_to_load= range(300),
+        target_name=('age', 'gender', 'pathological'),
     )
 
+    print(dataset_loaded.description)
     # We can finally generate compute windows. The resulting dataset is now ready
     # we will create compute windows. We specify a
     # mapping from genders 'M' and 'F' to integers, since this is required for
@@ -51,7 +52,7 @@ def main(cfg : DictConfig) -> None:
         window_size_samples=1000,
         window_stride_samples=1000,
         drop_last_window=False,
-        mapping={'M': 0, 'F': 1},  # map non-digit targets
+        mapping={'M': 0, 'F': 1, False: 0, True: 1 },  # map non-digit targets
     )
     # store the number of windows required for loading later on
     tuh_windows.set_description({
@@ -71,18 +72,18 @@ def main(cfg : DictConfig) -> None:
     # split
     # import random
     # inds = random.shuffle(range(ind))
-    tuh_splits = tuh_windows.split("version")
+    tuh_splits = tuh_windows.split("train")
     # {"train": inds[:int(70*ind)], "valid": inds[int(70*ind):int(90*ind)], "test": inds[int(90*ind)]}
     # )
     ###############################################################################
     # We give the dataset to a pytorch DataLoader, such that it can be used for
     # model training.
     dl_train = DataLoader(
-        dataset=tuh_splits["train"],
-        batch_size=64,
+        dataset=tuh_splits["False"],
+        batch_size=cfg.args.batch_size,
     )
     dl_eval = DataLoader(
-        dataset=tuh_splits["eval"],
+        dataset=tuh_splits["True"],
         batch_size=128,
     )
 
@@ -121,7 +122,7 @@ def main(cfg : DictConfig) -> None:
         losses = []
         for batch_X, batch_y, batch_ind in dl_train:
             pred = model(batch_X)
-            loss = F.cross_entropy(pred, batch_y[1])
+            loss = F.cross_entropy(pred, batch_y[2])
             losses.append(loss.detach().numpy())
 
             # Back propagate
@@ -138,10 +139,10 @@ def validatin(dl_eval, model):
     for batch_X, batch_y, batch_ind in dl_eval:
         model.eval()
         y_pred.extend(torch.argmax(model(batch_X),dim=1).detach().numpy())
-        y_true.extend(batch_y[1].numpy())
+        y_true.extend(batch_y[2].numpy())
     # print(y_true,'\n', y_pred)
     # print('accuracy_score:', accuracy_score(np.array(y_pred), np.array(y_true)))
-    return accuracy_score(np.array(y_pred), np.array(y_true))
+    return balanced_accuracy_score(np.array(y_pred), np.array(y_true))
 
 
 if __name__ == '__main__':

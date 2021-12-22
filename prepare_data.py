@@ -46,10 +46,10 @@ def main(cfg : DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
      
     TUH_PATH = cfg.args.TUH_PATH
-    tuh = TUH(
+    tuh = TUHAbnormal(
         path=TUH_PATH,
-        recording_ids=None, #range(10), #  [1,2,3,4,5],
-        target_name=('age', 'gender'),  # use both age and gender as decoding target
+        recording_ids=range(300), #None, #range(10), #  [1,2,3,4,5],
+        target_name=('age', 'gender', 'pathological'),  # use both age and gender as decoding target
         preload=False,
         add_physician_reports=False,
     )
@@ -211,7 +211,7 @@ def main(cfg : DictConfig) -> None:
     #    only have two cores. This number should be modified based on the machine
     #    that is available for preprocessing.
     N_JOBS = 1
-    OUT_PATH = TUH_PATH + "/preprocessed4/" #tempfile.mkdtemp()  # please insert actual output directory here
+    OUT_PATH = TUH_PATH + "/preprocessed/" #tempfile.mkdtemp()  # please insert actual output directory here
     from pathlib import Path
     Path(OUT_PATH).mkdir(parents=True, exist_ok=True)
     print(OUT_PATH)
