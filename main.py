@@ -74,11 +74,14 @@ def main(cfg : DictConfig) -> None:
     print('y:', y)
     print('ind:', ind)
 
-    ###
-    # split
-    # import random
-    # inds = random.shuffle(range(ind))
-    tuh_splits = tuh_windows.split("train")
+    ### split
+    split_ids = {
+                k: list(v)
+                for k, v in tuh_windows.description.groupby(["train","gender"]).groups.items()
+            }
+    splits = list(split_ids.keys())
+    print('splits:', splits)
+    tuh_splits = tuh_windows.split(split_ids)
     # {"train": inds[:int(70*ind)], "valid": inds[int(70*ind):int(90*ind)], "test": inds[int(90*ind)]}
     # )
 
@@ -86,12 +89,12 @@ def main(cfg : DictConfig) -> None:
     # We give the dataset to a pytorch DataLoader, such that it can be used for
     # model training.
     dl_train = DataLoader(
-        dataset=tuh_splits["True"],
+        dataset=tuh_splits[str(splits[cfg.args.train_gender])],
         batch_size=cfg.args.batch_size,
         num_workers=cfg.args.num_workers,
     )
     dl_eval = DataLoader(
-        dataset=tuh_splits["False"],
+        dataset=tuh_splits[str(splits[2+cfg.args.val_gender])],
         batch_size=128,
         num_workers=cfg.args.num_workers,
     )
