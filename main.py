@@ -31,11 +31,17 @@ from omegaconf import DictConfig, OmegaConf
 def main(cfg : DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
+    # Device definition
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
     #load preproccessed data
     dataset_loaded = load_concat_dataset(
         path=cfg.args.TUH_PP_PATH,
         preload=True,
-        ids_to_load= range(300),
+        # ids_to_load= range(300),
         target_name=('age', 'gender', 'pathological'),
     )
 
@@ -75,16 +81,19 @@ def main(cfg : DictConfig) -> None:
     tuh_splits = tuh_windows.split("train")
     # {"train": inds[:int(70*ind)], "valid": inds[int(70*ind):int(90*ind)], "test": inds[int(90*ind)]}
     # )
+
     ###############################################################################
     # We give the dataset to a pytorch DataLoader, such that it can be used for
     # model training.
     dl_train = DataLoader(
-        dataset=tuh_splits["False"],
+        dataset=tuh_splits["True"],
         batch_size=cfg.args.batch_size,
+        num_workers=cfg.args.num_workers,
     )
     dl_eval = DataLoader(
-        dataset=tuh_splits["True"],
+        dataset=tuh_splits["False"],
         batch_size=128,
+        num_workers=cfg.args.num_workers,
     )
 
     ###############################################################################
@@ -116,30 +125,35 @@ def main(cfg : DictConfig) -> None:
             # n_filters_4=256,
             # filter_length_4=10
         )
+    model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=cfg.args.lr, weight_decay=cfg.args.weight_decay)
 
     for ii in range(cfg.args.epochs): 
         losses = []
         for batch_X, batch_y, batch_ind in dl_train:
+            batch_X = batch_X.to(device)
+            batch_y = [y.to(device) for y in batch_y]
             pred = model(batch_X)
             loss = F.cross_entropy(pred, batch_y[2])
-            losses.append(loss.detach().numpy())
+            losses.append(loss.cpu().detach().numpy())
 
             # Back propagate
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
         
-        print ('epoch:',ii, 'loss:', np.array(losses).mean(), '| train accuracy:', validatin(dl_train, model), '| val accuracy:', validatin(dl_eval, model)  )
+        print ('epoch:',ii, 'loss:', np.array(losses).mean(), '| train accuracy:', validatin(dl_train, model, device), '| val accuracy:', validatin(dl_eval, model, device)  )
 
-def validatin(dl_eval, model):
+def validatin(dl_eval, model, device):
     # validatin
     y_pred = []
     y_true = [] 
     for batch_X, batch_y, batch_ind in dl_eval:
+        batch_X = batch_X.to(device)
+        batch_y = [y.to(device) for y in batch_y]
         model.eval()
-        y_pred.extend(torch.argmax(model(batch_X),dim=1).detach().numpy())
-        y_true.extend(batch_y[2].numpy())
+        y_pred.extend(torch.argmax(model(batch_X),dim=1).cpu().detach().numpy())
+        y_true.extend(batch_y[2].cpu().numpy())
     # print(y_true,'\n', y_pred)
     # print('accuracy_score:', accuracy_score(np.array(y_pred), np.array(y_true)))
     return balanced_accuracy_score(np.array(y_pred), np.array(y_true))
