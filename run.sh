@@ -16,6 +16,6 @@ module load anaconda/3
 conda activate eeg
 
 date
-python main.py args.train_gender=0,1 args.val_gender=0,1 --multirun 
+python main.py args.split_mode='age' args.train_grp=0,1,2 args.val_grp=0,1,2 --multirun 
 date
 

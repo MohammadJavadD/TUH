@@ -74,27 +74,48 @@ def main(cfg : DictConfig) -> None:
     print('y:', y)
     print('ind:', ind)
 
-    ### split
-    split_ids = {
-                k: list(v)
-                for k, v in tuh_windows.description.groupby(["train","gender"]).groups.items()
-            }
-    splits = list(split_ids.keys())
-    print('splits:', splits)
-    tuh_splits = tuh_windows.split(split_ids)
-    # {"train": inds[:int(70*ind)], "valid": inds[int(70*ind):int(90*ind)], "test": inds[int(90*ind)]}
-    # )
+    if cfg.args.split_mode == 'train':
+        # split by train val
+        tuh_splits = tuh_windows.split("train")
+    elif cfg.args.split_mode == 'gender':
+        ## split by trainn and gender 
+        split_ids = {
+                    k: list(v)
+                    for k, v in tuh_windows.description.groupby(["train","gender"]).groups.items()
+                }
+        splits = list(split_ids.keys())
+        print('splits:', splits, [len(x) for x in split_ids.values()])
+        tuh_splits = tuh_windows.split(split_ids)
+    elif cfg.args.split_mode == 'age':
+    ### split by train and age
+    # Binning of the data based on age
+        df = tuh_windows.description
+        df.loc[df.age < 40, 'age'] = 0
+        df.loc[(df.age > 40) & (df.age < 60), 'age'] = 40
+        df.loc[df.age > 60, 'age'] = 60
+        # tuh_windows.description = df
+        # print(tuh_windows.description,df)
+        split_ids = {
+                    k: list(v)
+                    for k, v in df.groupby(["train","age"]).groups.items()
+                }
+        splits = list(split_ids.keys())
+        print('splits:', splits, [len(x) for x in split_ids.values()])
+        tuh_splits = tuh_windows.split(split_ids)
+
 
     ###############################################################################
     # We give the dataset to a pytorch DataLoader, such that it can be used for
     # model training.
     dl_train = DataLoader(
-        dataset=tuh_splits[str(splits[cfg.args.train_gender])],
+        dataset=tuh_splits[str(splits[3+cfg.args.train_grp])],
+        # dataset=tuh_splits["True"],
         batch_size=cfg.args.batch_size,
         num_workers=cfg.args.num_workers,
     )
     dl_eval = DataLoader(
-        dataset=tuh_splits[str(splits[2+cfg.args.val_gender])],
+        dataset=tuh_splits[str(splits[cfg.args.val_grp])],
+        # dataset=tuh_splits["False"],
         batch_size=128,
         num_workers=cfg.args.num_workers,
     )
