@@ -55,8 +55,8 @@ def main(cfg : DictConfig) -> None:
         dataset_loaded,
         start_offset_samples=0,
         stop_offset_samples=None,
-        window_size_samples=1000,
-        window_stride_samples=1000,
+        window_size_samples=750,
+        window_stride_samples=750,
         drop_last_window=False,
         mapping={'M': 0, 'F': 1, False: 0, True: 1 },  # map non-digit targets
     )
@@ -108,14 +108,14 @@ def main(cfg : DictConfig) -> None:
     # We give the dataset to a pytorch DataLoader, such that it can be used for
     # model training.
     dl_train = DataLoader(
-        dataset=tuh_splits[str(splits[3+cfg.args.train_grp])],
-        # dataset=tuh_splits["True"],
+        # dataset=tuh_splits[str(splits[3+cfg.args.train_grp])],
+        dataset=tuh_splits["True"],
         batch_size=cfg.args.batch_size,
         num_workers=cfg.args.num_workers,
     )
     dl_eval = DataLoader(
-        dataset=tuh_splits[str(splits[cfg.args.val_grp])],
-        # dataset=tuh_splits["False"],
+        # dataset=tuh_splits[str(splits[cfg.args.val_grp])],
+        dataset=tuh_splits["False"],
         batch_size=128,
         num_workers=cfg.args.num_workers,
     )
@@ -150,6 +150,7 @@ def main(cfg : DictConfig) -> None:
             # filter_length_4=10
         )
     model.to(device)
+
     optimizer = optim.Adam(model.parameters(), lr=cfg.args.lr, weight_decay=cfg.args.weight_decay)
 
     for ii in range(cfg.args.epochs): 
@@ -167,6 +168,13 @@ def main(cfg : DictConfig) -> None:
             optimizer.step()
         
         print ('epoch:',ii, 'loss:', np.array(losses).mean(), '| train accuracy:', validatin(dl_train, model, device), '| val accuracy:', validatin(dl_eval, model, device)  )
+
+    # save model
+    torch.save(model.state_dict(), 'd4.pth',_use_new_zipfile_serialization=False)
+
+    #load model 
+    model.load_state_dict(torch.load('d4.pth'))
+
 
 def validatin(dl_eval, model, device):
     # validatin
