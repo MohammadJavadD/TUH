@@ -43,7 +43,8 @@ def main(cfg : DictConfig) -> None:
 
     # define test subjects
     test_rec = torch.randint(0, 2993, (250,))
-    train_rec = [sub for sub in range(cfg.args.first_sub,2993) if sub not in test_rec]
+    train_rec_all = [sub for sub in range(0,2993) if sub not in test_rec]
+    train_rec = [train_rec_all[idx] for idx in torch.randint(0, len(train_rec_all), (cfg.args.n_sub_train,))]
     
     #load preproccessed data
     dataset_train = load_concat_dataset(
@@ -232,7 +233,7 @@ def main(cfg : DictConfig) -> None:
 
     #Save the size and accuracy
     idx = torch.argmax(torch.tensor(val_acc))
-    df = pandas.DataFrame(data={'idx': [idx], 'Acc-train': [train_acc[idx]],'Acc-val': [val_acc[idx]] ,'Acc-test': [test_acc[idx]], 'Size': [2993-250-cfg.args.first_sub]})
+    df = pandas.DataFrame(data={'idx': [idx], 'Acc-train': [train_acc[idx]],'Acc-val': [val_acc[idx]] ,'Acc-test': [test_acc[idx]], 'Size': [cfg.args.n_sub_train]})
     print(df)
     df.to_csv('/home/mila/m/mohammad-javad.darvishi-bayasi/projects/TUH/TUH/accuracy_runs.csv', sep=',', mode='a', header=False)
 
