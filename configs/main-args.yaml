@@ -1,10 +1,17 @@
 args:
-  TUH_PP_PATH: './TUH/edf/preprocessed6'
-  lr: 0.0001
-  weight_decay: 0.0
-  epochs: 10 
-  batch_size: 64
+  seed: 2022
+  TUH_PP_PATH: '/home/mila/m/mohammad-javad.darvishi-bayasi/scratch/TUH/edf/preprocessed6'
+  model_name: EEGNet
+  lr: 0.001
+  weight_decay: 0.00
+  drop_prob: 0.25
+  epochs: 50
+  batch_size: 1024
   num_workers: 4
   split_mode: 'train'
   train_grp: 2
   val_grp: 1
+  n_sub_train: 2500
+
+data:
+  type: EEG
