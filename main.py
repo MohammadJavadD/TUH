@@ -13,8 +13,7 @@ from braindecode.preprocessing import preprocess, Preprocessor
 from braindecode.datautil import load_concat_dataset
 from braindecode.preprocessing import create_windows_from_events
 from braindecode.preprocessing import create_fixed_length_windows
-from braindecode.models import ShallowFBCSPNet, Deep4Net, EEGResNet, EEGNetv4, TCN
-
+import models
 
 #
 from torch.utils.data import DataLoader
@@ -25,7 +24,7 @@ import torch.nn.functional as F
 
 #
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 @hydra.main(config_path="configs", config_name="main-args")
 def main(cfg : DictConfig) -> None:
@@ -39,7 +38,7 @@ def main(cfg : DictConfig) -> None:
     print("device:",device) 
 
     # define random seeds
-    torch.manual_seed(2022)
+    torch.manual_seed(cfg.args.seed)
 
     # define test subjects
     test_rec = torch.randint(0, 2993, (250,))
@@ -166,34 +165,13 @@ def main(cfg : DictConfig) -> None:
     print('batch_y:', batch_y)
     print('batch_ind:', len(batch_ind))
 
+    with open_dict(cfg):
+        cfg.data.in_chans = batch_X.shape[1]
+        cfg.data.n_classes = 2
+        cfg.data.input_window_samples=batch_X.shape[2]
+
     ## training 
-    model = Deep4Net(
-            in_chans = batch_X.shape[1],
-            n_classes = 2,
-            input_window_samples=batch_X.shape[2],
-            final_conv_length='auto',
-            # n_filters_time=64,
-            # # n_filters_spat=32,
-            # filter_time_length=8,
-            # pool_time_length=4,
-            # # pool_time_stride=3,
-            # # n_filters_2=64,
-            # # filter_length_2=10,
-            # n_filters_3=256,
-            # # filter_length_3=10,
-            # # n_filters_4=256,
-            # # filter_length_4=10
-        )
-    # model = TCN(
-    #         n_in_chans=batch_X.shape[1] ,
-    #         n_outputs=2,
-    #         n_filters=55,
-    #         n_blocks=5,
-    #         kernel_size=8,
-    #         drop_prob=0.05270154233150525,
-    #         add_log_softmax=True
-    #     )
-    
+    model = models.get_model(cfg)
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.args.lr, weight_decay=cfg.args.weight_decay)
@@ -233,7 +211,7 @@ def main(cfg : DictConfig) -> None:
 
     #Save the size and accuracy
     idx = torch.argmax(torch.tensor(val_acc))
-    df = pandas.DataFrame(data={'idx': [idx], 'Acc-train': [train_acc[idx]],'Acc-val': [val_acc[idx]] ,'Acc-test': [test_acc[idx]], 'Size': [cfg.args.n_sub_train]})
+    df = pandas.DataFrame(data={'seed': [cfg.args.seed], 'idx': [idx], 'Acc-train': [train_acc[idx]],'Acc-val': [val_acc[idx]] ,'Acc-test': [test_acc[idx]], 'Size': [cfg.args.n_sub_train]})
     print(df)
     df.to_csv('/home/mila/m/mohammad-javad.darvishi-bayasi/projects/TUH/TUH/accuracy_runs.csv', sep=',', mode='a', header=False)
 
