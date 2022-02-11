@@ -1,0 +1,4 @@
+*.csv
+*.pkl
+**/.DS_Store
+*.txt
