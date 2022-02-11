@@ -7,3 +7,5 @@ It clean and save the dataset to be ready for loading in main tasks.
 
 # Gender classification
 Run `python main.py` 
+
+## CLIP EEG
