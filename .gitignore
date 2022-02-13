@@ -1,3 +1,6 @@
+*.out
+multirun/
+outputs/
 *.csv
 *.pkl
 **/.DS_Store

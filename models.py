@@ -114,7 +114,7 @@ class EEGNet(nn.Module):
 
         return out 
 
-class MNIST_CNN(nn.Module):
+class Sim_CNN(nn.Module):
     """ Hand-tuned architecture for extracting representation from MNIST images
     This was adapted from :
         https://github.com/facebookresearch/DomainBed
@@ -124,31 +124,40 @@ class MNIST_CNN(nn.Module):
         model_hparams (dict): The hyperparameters for the model.
         input_size (int, optional): The size of the input to the model. Defaults to None. If None, the input size is calculated from the dataset.
     """
-    #:int: Size of the output respresentation
-    EMBED_DIM = 32
-    #:int: Size of the representation after convolution, but before FCC layers
-    CNN_OUT_DIM = 32*3*3
-
-    def __init__(self, input_shape):
-        super(MNIST_CNN, self).__init__()
+    def __init__(self, cfg):
+        super(Sim_CNN, self).__init__()
 
         # Make CNN
         self.conv = nn.Sequential(
-            nn.Conv2d(input_shape[0], 8, 3, 1, padding=1),
-            nn.Conv2d(8, 32, 3, stride=2, padding=1),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, 3, 1, padding=1),
-            nn.MaxPool2d(2),
-            nn.Conv2d(32, 32, 3, 1, padding=1),
+            nn.Conv2d(1, 64, (16,16), 1, padding=1),
+            # nn.Tanh(),
+            nn.BatchNorm2d(64, momentum=0.01, affine=True, eps=1e-3),
+            nn.Conv2d(64, 32, (8,8), stride=1, padding=1),
+            # nn.Tanh(),
+            nn.BatchNorm2d(32, momentum=0.01, affine=True, eps=1e-3),
+            nn.MaxPool2d((1,2)),
+            nn.Conv2d(32, 32, (4,8), 1, padding=1),
+            # nn.Tanh(),
+            nn.BatchNorm2d(32, momentum=0.01, affine=True, eps=1e-3),
+            nn.MaxPool2d((1,2)),
+            nn.Conv2d(32, 64, (4,8), 1, padding=1),
+            # nn.SELU(),
+            nn.BatchNorm2d(64, momentum=0.01, affine=True, eps=1e-3),
+            ## more layer 
+            nn.Conv2d(64, 1, (2,8), 1, padding=1),
+            # nn.SELU(),
+            nn.BatchNorm2d(1, momentum=0.01, affine=True, eps=1e-3),
         )
 
         # Make FCC layers
         self.FCC = nn.Sequential(
-            nn.Linear(self.CNN_OUT_DIM, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
+            nn.Linear(2*170, 2), #cfg.data.n_classes),
+            # nn.Tanh(),
+            # nn.Linear(64, 32),
+            # nn.Mish(),
         )
+
+        self.log_sm = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         """ Forward pass through the model
@@ -157,9 +166,12 @@ class MNIST_CNN(nn.Module):
         Returns:
             torch.Tensor: The output representation of the model.
         """
+        x = torch.unsqueeze(x, dim=1)
         x = self.conv(x)
+        # print(x.shape)
         x = x.view(x.size(0), -1)
         x = self.FCC(x)
+        x = self.log_sm(x)
         return x
 
 class LSTM(nn.Module):
@@ -282,3 +294,12 @@ class LSTM(nn.Module):
     #     final_conv_length='auto', 
     #     drop_prob=0.25,
     # )  
+
+if __name__ == '__main__':
+    x = input = torch.randn([1024, 21, 750])
+    # x = torch.unsqueeze(x, dim=1)
+    print(x.shape)
+    cfg = 10
+    model = Sim_CNN(cfg)
+    y = model(x)
+    print(y.shape)
