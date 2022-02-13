@@ -172,6 +172,8 @@ def main(cfg : DictConfig) -> None:
 
     ## training 
     model = models.get_model(cfg)
+    print("Number of parameters = ", sum(p.numel() for p in model.parameters() if p.requires_grad))
+
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.args.lr, weight_decay=cfg.args.weight_decay)
@@ -210,8 +212,8 @@ def main(cfg : DictConfig) -> None:
     model.load_state_dict(torch.load('d4.pth'))
 
     #Save the size and accuracy
-    idx = torch.argmax(torch.tensor(val_acc))
-    df = pandas.DataFrame(data={'seed': [cfg.args.seed], 'idx': [idx], 'Acc-train': [train_acc[idx]],'Acc-val': [val_acc[idx]] ,'Acc-test': [test_acc[idx]], 'Size': [cfg.args.n_sub_train]})
+    idx = torch.argmin(torch.tensor(val_acc)[:,1]) # based on the loss [1] or acc [0]
+    df = pandas.DataFrame(data={'seed': [cfg.args.seed], 'idx': [idx], 'Acc-train': [train_acc[idx][0]],'Acc-val': [val_acc[idx][0]] ,'Acc-test': [test_acc[idx][0]], 'Size': [cfg.args.n_sub_train]})
     print(df)
     df.to_csv('/home/mila/m/mohammad-javad.darvishi-bayasi/projects/TUH/TUH/accuracy_runs.csv', sep=',', mode='a', header=False)
 
@@ -220,15 +222,21 @@ def validatin(dl_eval, model, device):
     # validatin
     y_pred = []
     y_true = [] 
+    losses = []
     for batch_X, batch_y, batch_ind in dl_eval:
         batch_X = batch_X.to(device)
         batch_y = [y.to(device) for y in batch_y]
         model.eval()
-        y_pred.extend(torch.argmax(model(batch_X),dim=1).cpu().detach().numpy())
+        pred = model(batch_X)
+        y_pred.extend(torch.argmax(pred,dim=1).cpu().detach().numpy())
         y_true.extend(batch_y[2].cpu().numpy())
+        # cal loss 
+        loss = F.cross_entropy(pred, batch_y[2])
+        losses.append(loss.cpu().detach().numpy())
     # print(y_true,'\n', y_pred)
     # print('accuracy_score:', accuracy_score(np.array(y_pred), np.array(y_true)))
-    return balanced_accuracy_score(np.array(y_pred), np.array(y_true))
+    # print(np.array(losses).mean())
+    return balanced_accuracy_score(np.array(y_pred),np.array(y_true)), np.array(losses).mean()
 
 
 if __name__ == '__main__':
