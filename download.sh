@@ -24,7 +24,7 @@ do
     # execute your rsync command
     #
     echo "starting rsync..."
-    rsync -auxvL nedc@isip.piconepress.com:data/tuh_eeg_abnormal/v2.0.0/ . #rsync -auxv $1 .
+    rsync -auxvL nedc@isip.piconepress.com:data/eeg/tuh_eeg_abnormal /home/mjavad/scratch/TUH2/ #nedc_resources
     RC=$?
 
     # display an informational message and sleep for a bit
