@@ -1,12 +1,12 @@
 args:
   seed: 2022
   TUH_PP_PATH: '/home/mila/m/mohammad-javad.darvishi-bayasi/scratch/TUH/edf/preprocessed6'
-  model_name: EEGNet
+  model_name: Sim_CNN
   lr: 0.001
   weight_decay: 0.00
   drop_prob: 0.25
   epochs: 50
-  batch_size: 1024
+  batch_size: 256
   num_workers: 4
   split_mode: 'train'
   train_grp: 2

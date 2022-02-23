@@ -26,6 +26,10 @@ import torch.nn.functional as F
 import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
 
+#
+from libs.sam import SAM as SAM_alg
+
+
 @hydra.main(config_path="configs", config_name="main-args")
 def main(cfg : DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
@@ -177,6 +181,8 @@ def main(cfg : DictConfig) -> None:
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.args.lr, weight_decay=cfg.args.weight_decay)
+    optimizer = SAM_alg(model.parameters(), torch.optim.Adam, lr=cfg.args.lr, rho=0.01, adaptive=False)#, momentum=0.9)#optimizer
+
 
     #
     train_acc = []
@@ -195,9 +201,16 @@ def main(cfg : DictConfig) -> None:
             losses.append(loss.cpu().detach().numpy())
 
             # Back propagate
-            optimizer.zero_grad()
+            # optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            # optimizer.step()
+
+            #sam
+            optimizer.first_step(zero_grad=True)
+
+            #sam # second forward-backward pass
+            F.cross_entropy(model(batch_X),batch_y[2]).backward()  # make sure to do a full forward pass
+            optimizer.second_step(zero_grad=True)
         
         train_acc.append(validatin(dl_train, model, device))
         val_acc.append(validatin(dl_eval, model, device))
